@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:unsplash="http://www.mulesoft.org/schema/mule/unsplash" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/unsplash http://www.mulesoft.org/schema/mule/unsplash/current/mule-unsplash.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<unsplash:config name="Unsplash_Config" doc:name="Unsplash Config" doc:id="949aa0a0-b610-443c-bdf9-09779b0e2914" configId="lOX42bI1jcImzzp7HXTGUQmV1vKOqelnaW2sRU_fEI4" unsplashAccessToken="lOX42bI1jcImzzp7HXTGUQmV1vKOqelnaW2sRU_fEI4" >
+		<unsplash:connection requiredParameter="test" />
+	</unsplash:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9e5d460b-c1ca-4a90-bcb3-19a0e9307715">
+		<http:request-connection host="unsplash.com" port="443" protocol="HTTPS"/>
+	</http:request-config>
+	<flow name="unsplashFlow" doc:id="59972697-f07d-4244-8cad-651a25ffa078" >
+		<scheduler doc:name="Scheduler" doc:id="a26eac5a-d5ec-400c-bba6-1a2ddf4221cb" >
+			<scheduling-strategy >
+				<fixed-frequency startDelay="100" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<unsplash:get-random-photo doc:name="Get random photo" doc:id="27a455ad-1084-41dd-bdea-6380fc4d1258" config-ref="Unsplash_Config" keyword="pet" count="5"/>
+		<ee:transform doc:name="Transform Message" doc:id="c895cff6-3b98-4eff-8a8c-57731c3c4cf6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-payload value="#[payload.urls.full]" doc:name="Set Payload" doc:id="bb2f258f-7cba-4931-a16d-df6c759cf89d" />
+	</flow>
+	<flow name="unsplashFlow1" doc:id="618017ee-e072-4f43-b41f-dbf8fdbc53e5" >
+		<scheduler doc:name="Copy_of_Scheduler" doc:id="dce12c27-1148-4c5a-8bc1-a2afb5e21270" >
+			<scheduling-strategy >
+				<fixed-frequency startDelay="100" timeUnit="DAYS" />
+			</scheduling-strategy>
+		</scheduler>
+		<unsplash:search-photo doc:name="Search photo" doc:id="6817153b-5c59-4f5e-8798-8ee0b339fcff" config-ref="Unsplash_Config" searchTerm="cars" page="1" color="blue" perPage="100"/>
+		<ee:transform doc:name="Copy_of_Transform Message" doc:id="d10e3029-d33b-4287-9f40-d48cf0fd9bc1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="17d724ec-1c07-4596-b424-739e471500ca" collection="#[payload.results]">
+			<set-variable value="#[payload]" doc:name="Set Variable" doc:id="5befb17e-cac4-44b0-99e0-a688bfb87da7" variableName="original"/>
+			<http:request method="GET" doc:name="Request" doc:id="7a2fe311-e124-4621-864a-5397df782bdb" config-ref="HTTP_Request_configuration" path="/photos/{photoId}/download">
+				<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"photoId" : payload.id
+}]]]></http:uri-params>
+			</http:request>
+			<file:write doc:name="Write" doc:id="f23f3a93-629b-46ee-ad91-04f58b6a46fc" path='#["/Users/edgarm/Desktop/images/" ++ vars.original.id ++ ".jpeg"]'/>
+		</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="8a6fa342-b568-444c-b8bb-cd8fab2263f9" />
+	</flow>
+</mule>
